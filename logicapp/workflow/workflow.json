@@ -1,0 +1,236 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Get_StatusQueryURI": {
+                "inputs": {
+                    "content": "@body('Start_Orchestration')",
+                    "schema": {
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "purgeHistoryDeleteUri": {
+                                "type": "string"
+                            },
+                            "sendEventPostUri": {
+                                "type": "string"
+                            },
+                            "statusQueryGetUri": {
+                                "type": "string"
+                            },
+                            "terminatePostUri": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "runAfter": {
+                    "Start_Orchestration": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ParseJson"
+            },
+            "Initialize_ExecutionStatus": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "ExecutionStatus",
+                            "type": "string",
+                            "value": "Running"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Initialize_variable_-_FinalResponse": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Initialize_variable_-_FinalResponse": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "FinalResponse",
+                            "type": "string",
+                            "value": "\"\""
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Get_StatusQueryURI": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "Response": {
+                "inputs": {
+                    "body": "@variables('FinalResponse')",
+                    "statusCode": 200
+                },
+                "kind": "Http",
+                "runAfter": {
+                    "Until": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Response"
+            },
+            "Start_Orchestration": {
+                "inputs": {
+                    "method": "POST",
+                    "queries": {
+                        "code": "<Placeholder for Function Key>"
+                    },
+                    "uri": "https://<functionname>.azurewebsites.net/api/StartOrchestration"
+                },
+                "operationOptions": "DisableAsyncPattern",
+                "runAfter": {},
+                "runtimeConfiguration": {
+                    "contentTransfer": {
+                        "transferMode": "Chunked"
+                    }
+                },
+                "type": "Http"
+            },
+            "Until": {
+                "actions": {
+                    "Delay": {
+                        "inputs": {
+                            "interval": {
+                                "count": 2,
+                                "unit": "Second"
+                            }
+                        },
+                        "type": "Wait"
+                    },
+                    "Parse_Query_Status": {
+                        "inputs": {
+                            "content": "@body('QueryStatusURI')",
+                            "schema": {
+                                "properties": {
+                                    "createdTime": {
+                                        "type": "string"
+                                    },
+                                    "customStatus": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "input": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "instanceId": {
+                                        "type": "string"
+                                    },
+                                    "lastUpdatedTime": {
+                                        "type": "string"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "output": {
+                                        "type": [
+                                            "string",
+                                            "null"
+                                        ]
+                                    },
+                                    "runtimeStatus": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "runAfter": {
+                            "QueryStatusURI": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ParseJson"
+                    },
+                    "QueryStatusURI": {
+                        "inputs": {
+                            "method": "GET",
+                            "uri": "@body('Get_StatusQueryURI')?['statusQueryGetUri']"
+                        },
+                        "operationOptions": "DisableAsyncPattern",
+                        "runAfter": {
+                            "Delay": [
+                                "Succeeded"
+                            ]
+                        },
+                        "runtimeConfiguration": {
+                            "contentTransfer": {
+                                "transferMode": "Chunked"
+                            }
+                        },
+                        "type": "Http"
+                    },
+                    "Set_FinalResponse_to_Output": {
+                        "inputs": {
+                            "name": "FinalResponse",
+                            "value": "@body('Parse_Query_Status')?['output']"
+                        },
+                        "runAfter": {
+                            "Set_variable_1": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "SetVariable"
+                    },
+                    "Set_variable_1": {
+                        "inputs": {
+                            "name": "ExecutionStatus",
+                            "value": "@body('Parse_Query_Status')?['runtimeStatus']"
+                        },
+                        "runAfter": {
+                            "Parse_Query_Status": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "SetVariable"
+                    }
+                },
+                "expression": "@equals(variables('ExecutionStatus'),'Completed')",
+                "limit": {
+                    "count": 60,
+                    "timeout": "PT1H"
+                },
+                "runAfter": {
+                    "Initialize_ExecutionStatus": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Until"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            }
+        },
+        "triggers": {
+            "When_a_HTTP_request_is_received": {
+                "kind": "Http",
+                "type": "Request"
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "value": {}
+        }
+    }
+}
